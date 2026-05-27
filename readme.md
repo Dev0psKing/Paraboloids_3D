@@ -52,7 +52,7 @@ To graph a different function, locate the `evaluateFunction(x, y)` function in t
 function evaluateFunction(x, y) {
     return (x * x) - (y * y); 
 }
-
+```
 
 
 ## 📚 Assignment Criteria Checklist
