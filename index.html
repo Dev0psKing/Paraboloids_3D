@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unit 7: 3D Function Grapher</title>
+    <!-- Import Three.js core library and extension add-ons from CDN -->
+    <style>
+        body { margin: 0; overflow: hidden; }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-family: Arial, sans-serif;
+            background: rgba(0,0,0,0.6);
+            padding: 10px 20px;
+            border-radius: 8px;
+            pointer-events: none;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h2>z = x² - y² (Hyperbolic Paraboloid)</h2>
+        <p>Drag to Rotate | Scroll to Zoom</p>
+    </div>
+
+    <!-- Import maps and scripts using ES Module syntax -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        // --- 1. IMPORTS ---
+        // Importing the core library and necessary add-ons for controls
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+        // --- 2. SCENE SETUP ---
+        // Create the main scene, camera, and renderers
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x111122); // Dark blue background
+
+        // Camera: Perspective camera with a field of view of 45 degrees
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(3, 2, 5); // Position the camera to look at the origin
+        camera.lookAt(0, 0, 0);
+
+        // WebGL Renderer (for 3D graphics)
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true; // Enable shadows if needed later
+        document.body.appendChild(renderer.domElement);
+
+        // CSS2 Renderer (for high-quality text labels on the axis)
+        const labelRenderer = new CSS2DRenderer();
+        labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        labelRenderer.domElement.style.position = 'absolute';
+        labelRenderer.domElement.style.top = '0px';
+        labelRenderer.domElement.style.left = '0px';
+        labelRenderer.domElement.style.pointerEvents = 'none'; // Allow click-through to controls
+        document.body.appendChild(labelRenderer.domElement);
+
+        // --- 3. CONTROLS ---
+        // OrbitControls allows rotation, panning, and zooming (scaling) via mouse
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; // Add a nice smooth inertia to the movement
+        controls.dampingFactor = 0.05;
+        controls.screenSpacePanning = true;
+        controls.maxDistance = 15;
+        controls.minDistance = 1;
+
+        // --- 4. LIGHTING ---
+        // Ambient light provides base illumination
+        const ambientLight = new THREE.AmbientLight(0x404060);
+        scene.add(ambientLight);
+
+        // Directional light casts shadows and highlights the 3D shape
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(1, 2, 1);
+        scene.add(dirLight);
+
+        const backLight = new THREE.DirectionalLight(0x4466ff, 0.5);
+        backLight.position.set(-1, 1, -1);
+        scene.add(backLight);
+
+        // --- 5. MATH FUNCTION DEFINITION ---
+        // This is the core logic. To change the function, change the return statement here.
+        // Constraints: Must be in the form z = f(x, y)
+        // Current Function: Hyperbolic Paraboloid (Saddle shape)
+        function evaluateFunction(x, y) {
+            // Return z value. Change this formula to graph something else.
+            // For example: x*x + y*y (Paraboloid/Cone)
+            // For example: Math.sin(x) * Math.cos(y) (Wavy surface)
+            return (x * x) - (y * y);
+        }
+
+        // --- 6. GENERATING THE SURFACE MESH ---
+        // We iterate through x and y from -1 to 1 in steps of 0.1
+        const minVal = -1.0;
+        const maxVal = 1.0;
+        const step = 0.1;
+
+        // Arrays to hold the vertices, indices, and colors
+        const vertices = [];
+        const indices = [];
+        const colors = [];
+
+        // Helper to map a value from one range to another (for color gradient)
+        const mapRange = (val, inMin, inMax, outMin, outMax) => {
+            return ((val - inMin) / (inMax - inMin)) * (outMax - outMin) + outMin;
+        };
+
+        // Calculate step count
+        const steps = Math.floor((maxVal - minVal) / step) + 1;
+
+        // Generate vertices and colors
+        // We store them in a grid structure first to handle the quad indices easily
+        // We do this by creating a 2D array conceptually, but flat list for Three.js
+        // Index map: grid[i][j] -> vertexIndex = i * steps + j
+
+        // First pass: calculate all Z values and push vertices
+        let currentIndex = 0;
+        let minZ = Infinity;
+        let maxZ = -Infinity;
+
+        for (let i = 0; i < steps; i++) {
+            const x = minVal + i * step;
+            for (let j = 0; j < steps; j++) {
+                const y = minVal + j * step;
+                const z = evaluateFunction(x, y);
+
+                // Track min/max Z for coloring
+                if (z < minZ) minZ = z;
+                if (z > maxZ) maxZ = z;
+
+                // Push vertex [x, y, z]
+                vertices.push(x, y, z);
+                currentIndex++;
+            }
+        }
+
+        // Second pass: create indices (two triangles per grid square) and colors
+        // Colors are based on height (Z value)
+        for (let i = 0; i < steps - 1; i++) {
+            for (let j = 0; j < steps - 1; j++) {
+                // Indices of the four corners of the current grid square
+                // a---b
+                // |   |
+                // c---d
+                const a = i * steps + j;
+                const b = i * steps + (j + 1);
+                const c = (i + 1) * steps + j;
+                const d = (i + 1) * steps + (j + 1);
+
+                // Triangle 1 (a-b-c)
+                indices.push(a, b, c);
+                // Triangle 2 (b-d-c)
+                indices.push(b, d, c);
+            }
+        }
+
+        // Calculate colors based on Z normalized between 0 and 1
+        // To avoid division by zero if flat surface
+        const rangeZ = maxZ - minZ;
+        for (let i = 0; i < vertices.length; i += 3) {
+            const z = vertices[i+2];
+            // Normalize z to 0-1
+            let t = (rangeZ === 0) ? 0.5 : (z - minZ) / rangeZ;
+
+            // Create a color gradient:
+            // Low Z (Blue) -> Mid Z (Green/Yellow) -> High Z (Red)
+            // Using simple RGB interpolation
+            let r, g, b;
+            if (t < 0.5) {
+                // Blue to Green
+                const localT = t * 2;
+                r = 0;
+                g = localT;
+                b = 1 - localT;
+            } else {
+                // Green to Red
+                const localT = (t - 0.5) * 2;
+                r = localT;
+                g = 1 - localT;
+                b = 0;
+            }
+            colors.push(r, g, b);
+        }
+
+        // Create the BufferGeometry and populate it
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        geometry.setIndex(indices);
+
+        // Compute normals for proper lighting
+        geometry.computeVertexNormals();
+
+        // Material with vertex colors enabled
+        const material = new THREE.MeshPhongMaterial({
+            vertexColors: true,
+            side: THREE.DoubleSide, // Render both sides of the mesh
+            shininess: 30,
+            specular: new THREE.Color(0x222222)
+        });
+
+        // Create the mesh and add to scene
+        const graphMesh = new THREE.Mesh(geometry, material);
+        scene.add(graphMesh);
+
+        // --- 7. REFERENCE PLANE (Grid) ---
+        // A grid helper helps visualize the X-Y plane at Z=0
+        const gridHelper = new THREE.GridHelper(4, 20, 0x88aaff, 0x446688);
+        gridHelper.position.y = 0; // Ensure it's exactly at the origin
+        scene.add(gridHelper);
+
+        // Add a subtle transparent plane to "catch" the shadow or just visualize the floor
+        const planeGeo = new THREE.PlaneGeometry(4, 4);
+        const planeMat = new THREE.MeshBasicMaterial({
+            color: 0x3366aa,
+            transparent: true,
+            opacity: 0.1,
+            side: THREE.DoubleSide
+        });
+        const plane = new THREE.Mesh(planeGeo, planeMat);
+        plane.rotation.x = -Math.PI / 2; // Lay flat
+        plane.position.y = -0.01; // Slightly below grid to avoid z-fighting
+        scene.add(plane);
+
+        // --- 8. AXIS HELPER ---
+        // Custom Axis Helper with Colorful Arrows and Text Labels
+
+        // Function to create an arrow
+        function createArrow(dir, origin, length, color, labelText) {
+            // Dir is a Vector3, origin is Vector3
+            const arrowHelper = new THREE.ArrowHelper(dir, origin, length, color, 0.2, 0.1);
+            scene.add(arrowHelper);
+
+            // Create a div for the label
+            const div = document.createElement('div');
+            div.textContent = labelText;
+            div.style.color = 'white';
+            div.style.fontSize = '20px';
+            div.style.fontWeight = 'bold';
+            div.style.textShadow = '1px 1px 3px black';
+            div.style.fontFamily = 'Arial, sans-serif';
+
+            const label = new CSS2DObject(div);
+            // Position label at the tip of the arrow + slight offset
+            const pos = origin.clone().add(dir.clone().multiplyScalar(length + 0.2));
+            label.position.copy(pos);
+            scene.add(label);
+        }
+
+        // Create X Axis (Red)
+        createArrow(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 0), 1.8, 0xff3333, 'X');
+
+        // Create Y Axis (Blue)
+        createArrow(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 1.8, 0x3333ff, 'Y');
+
+        // Create Z Axis (Green)
+        createArrow(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, 0), 1.8, 0x33ff33, 'Z');
+
+        // Add small spheres at the origin to anchor the axes visually
+        const originSphere = new THREE.Mesh(
+            new THREE.SphereGeometry(0.08, 16, 16),
+            new THREE.MeshBasicMaterial({ color: 0xffffff })
+        );
+        scene.add(originSphere);
+
+        // --- 9. ANIMATION LOOP ---
+        function animate() {
+            // Update controls (required for damping)
+            controls.update();
+
+            // Render the main scene with WebGL
+            renderer.render(scene, camera);
+
+            // Render the labels with CSS2D
+            labelRenderer.render(scene, camera);
+
+            // Request next frame
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // --- 10. WINDOW RESIZE HANDLER ---
+        window.addEventListener('resize', onWindowResize, false);
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Log completion
+        console.log("Function Grapher initialized successfully.");
+        console.log("Graphing: z = x^2 - y^2");
+
+    </script>
+</body>
+</html>
