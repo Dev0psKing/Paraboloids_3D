@@ -57,7 +57,7 @@ function evaluateFunction(x, y) {
 ├── index.html          # Single-file solution (HTML + Embedded JS)
 ├── README.md           # Project documentation
 └── screenshot.png      # (Optional) Image of the graphed function
-```
+
 
 ## 📚 Assignment Criteria Checklist
 | Requirement | Status |
@@ -71,4 +71,3 @@ function evaluateFunction(x, y) {
 
 ## 👤 Author
 Uwabor Collins - Unit 7 - Programming Assignment - CS 4406
-```
