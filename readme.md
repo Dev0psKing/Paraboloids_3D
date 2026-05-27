@@ -1,4 +1,4 @@
-Here is a professional `README.md` file tailored to your Unit 7 Programming Assignment. You can copy this directly into a file named `README.md`.
+
 
 ***
 
