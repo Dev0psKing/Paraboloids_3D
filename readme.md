@@ -5,7 +5,6 @@
 # 3D Function Grapher (Three.js)
 ![img.png](img.png)
 
-
 ## 📖 Overview
 This project is a 3D mathematical function grapher built using JavaScript and the **Three.js** library. It was developed as the **Unit 7 Programming Assignment**.
 
